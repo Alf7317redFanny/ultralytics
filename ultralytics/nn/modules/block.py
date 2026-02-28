@@ -853,9 +853,11 @@ class BNContrastiveHead(nn.Module):
         super().__init__()
         self.norm = nn.BatchNorm2d(embed_dims)
         # Fixed bias and logit_scale values as buffers (not learnable parameters)
-        self.register_buffer("bias", torch.tensor([-16.0]))
-        self.register_buffer("logit_scale", torch.tensor([0.7]))
-        
+        # self.register_buffer("bias", torch.tensor([-16.0]))
+        # self.register_buffer("logit_scale", torch.tensor([0.7]))
+        self.bias = nn.Parameter(torch.tensor([-16.0]))
+        # use -1.0 is more stable
+        self.logit_scale = nn.Parameter(0.7 * torch.ones([]))
 
     def fuse(self):
         """Fuse the batch normalization layer in the BNContrastiveHead module."""
