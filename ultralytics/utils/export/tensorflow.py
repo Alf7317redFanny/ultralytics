@@ -229,6 +229,10 @@ def pb2tfjs(pb_file: str, output_dir: str, half: bool = False, int8: bool = Fals
         .replace("np.str", "str")
     )
 
+    # Delete all .pyc caches for this file
+    for pyc in _path.parent.joinpath("__pycache__").glob(f"{_path.stem}.*.pyc"):
+        pyc.unlink()
+
     LOGGER.info(f"\n{prefix} starting export with tensorflowjs {tfjs.__version__}...")
 
     gd = tf.Graph().as_graph_def()  # TF GraphDef
