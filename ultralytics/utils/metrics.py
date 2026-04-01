@@ -457,23 +457,19 @@ class ConfusionMatrix(DataExportMixin):
     ) -> dict[str, float]:
         """Return per-image TP, FP, FN, precision, and recall using confusion-matrix filtering and matching."""
         detections, gt_classes, detection_classes, matches = self._match_detections(detections, batch, conf, iou_thres)
-        n = matches.shape[0] > 0
-        tp, fp, fn = 0, 0, 0
-        if gt_classes:
-            m0, m1, _ = matches.transpose().astype(int) if n else (np.array([], dtype=int),) * 3
-            for i, gc in enumerate(gt_classes):
-                j = m0 == i
-                if n and sum(j) == 1 and detection_classes[m1[j].item()] == gc:
-                    tp += 1
-                else:
-                    fn += 1
-            for i in range(len(detection_classes)):
-                if not any(m1 == i):
-                    fp += 1
-                elif detection_classes[i] != gt_classes[m0[m1 == i].item()]:
-                    fp += 1
-        else:
-            fp = len(detection_classes)
+        m0, m1, _ = matches.transpose().astype(int) if matches.shape[0] > 0 else (np.array([], dtype=int),) * 3
+        matched_det = set()
+        tp, fn = 0, 0
+        for i, gc in enumerate(gt_classes):
+            j = np.flatnonzero(m0 == i)
+            if j.size == 1 and detection_classes[m1[j[0]]] == gc:
+                tp += 1
+                matched_det.add(m1[j[0]])
+            else:
+                fn += 1
+        fp = sum(
+            1 for i, dc in enumerate(detection_classes) if i not in matched_det or dc != gt_classes[m0[m1 == i][0]]
+        )
 
         precision = tp / (tp + fp) if tp + fp else 0.0
         recall = tp / (tp + fn) if tp + fn else 0.0
