@@ -274,14 +274,13 @@ class DetectionValidator(BaseValidator):
 
     def print_results(self) -> None:
         """Print training/validation set metrics per class."""
-        pf = "%22s" + "%11i" * 2 + "%11.3g" * 6
+        pf = "%22s" + "%11i" * 2 + "%11.3g" * len(self.metrics.keys)  # print format
         LOGGER.info(pf % ("all", self.seen, self.metrics.nt_per_class.sum(), *self.metrics.mean_results()))
         if self.metrics.nt_per_class.sum() == 0:
             LOGGER.warning(f"no labels found in {self.args.task} set, cannot compute metrics without labels")
 
         # Print results per class
         if self.args.verbose and not self.training and self.nc > 1 and len(self.metrics.stats):
-            pf = "%22s" + "%11i" * 2 + "%11.3g" * 4
             for i, c in enumerate(self.metrics.ap_class_index):
                 LOGGER.info(
                     pf

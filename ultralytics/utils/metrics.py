@@ -385,7 +385,7 @@ class ConfusionMatrix(DataExportMixin):
             iou_thres (float, optional): IoU threshold for matching detections to ground truth.
         """
         detections, gt_classes, detection_classes, matches = self._match_detections(detections, batch, conf, iou_thres)
-        gt_cls = batch["cls"], batch["bboxes"]
+        gt_cls = batch["cls"]
         if self.matches is not None:  # only if visualization is enabled
             self.matches = {k: defaultdict(list) for k in {"TP", "FP", "FN", "GT"}}
             for i in range(gt_cls.shape[0]):
@@ -1082,11 +1082,8 @@ class DetMetrics(SimpleClass, DataExportMixin):
         self.speed = {"preprocess": 0.0, "inference": 0.0, "loss": 0.0, "postprocess": 0.0}
         self.stats = dict(tp=[], conf=[], pred_cls=[], target_cls=[], target_img=[])
         self.image_stats = []
-        self.image_results = []
         self.nt_per_class = None
         self.nt_per_image = None
-        self.mean_image_precision = 0.0
-        self.mean_image_recall = 0.0
 
     def update_stats(self, stat: dict[str, Any]) -> None:
         """Update statistics by appending new values to existing stat collections.
@@ -1131,36 +1128,22 @@ class DetMetrics(SimpleClass, DataExportMixin):
         self.box.update(results)
         self.nt_per_class = np.bincount(stats["target_cls"].astype(int), minlength=len(self.names))
         self.nt_per_image = np.bincount(stats["target_img"].astype(int), minlength=len(self.names))
-        self.image_results = list(self.image_stats)
-        if self.image_results:
-            self.mean_image_precision = float(np.mean([x["precision"] for x in self.image_results]))
-            self.mean_image_recall = float(np.mean([x["recall"] for x in self.image_results]))
-        else:
-            self.mean_image_precision = 0.0
-            self.mean_image_recall = 0.0
         return stats
 
     def clear_stats(self):
         """Clear the stored statistics."""
         for v in self.stats.values():
             v.clear()
-        self.image_stats.clear()
+        # self.image_stats.clear()
 
     @property
     def keys(self) -> list[str]:
         """Return a list of keys for accessing specific metrics."""
-        return [
-            "metrics/precision(B)",
-            "metrics/recall(B)",
-            "metrics/mAP50(B)",
-            "metrics/mAP50-95(B)",
-            "metrics/image_precision(B)",
-            "metrics/image_recall(B)",
-        ]
+        return ["metrics/precision(B)", "metrics/recall(B)", "metrics/mAP50(B)", "metrics/mAP50-95(B)"]
 
     def mean_results(self) -> list[float]:
         """Calculate mean box metrics and mean per-image precision/recall."""
-        return [*self.box.mean_results(), self.mean_image_precision, self.mean_image_recall]
+        return self.box.mean_results()
 
     def class_result(self, i: int) -> tuple[float, float, float, float]:
         """Return the result of evaluating the performance of an object detection model on a specific class."""
@@ -1231,22 +1214,6 @@ class DetMetrics(SimpleClass, DataExportMixin):
             }
             for i in range(len(per_class["Box-P"]))
         ]
-
-    def image_summary(self, decimals: int = 5) -> list[dict[str, Any]]:
-        """Generate a summarized representation of per-image detection counts and metrics."""
-        summary = []
-        for row in self.image_results:
-            summary.append(
-                {
-                    "Image": row["image"],
-                    "TP": row["tp"],
-                    "FP": row["fp"],
-                    "FN": row["fn"],
-                    "Precision": round(row["precision"], decimals),
-                    "Recall": round(row["recall"], decimals),
-                }
-            )
-        return summary
 
 
 class SegmentMetrics(DetMetrics):
