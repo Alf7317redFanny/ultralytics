@@ -1553,42 +1553,54 @@ class ReidMetrics(SimpleClass, DataExportMixin):
         self.rank10 = 0.0
         self.speed = {"preprocess": 0.0, "inference": 0.0, "loss": 0.0, "postprocess": 0.0}
         self.task = "reid"
+        self.gallery_feats = None
+        self.gallery_pids = None
+        self.gallery_camids = None
 
-    def process(self, query_feats, query_pids, query_camids, gallery_feats, gallery_pids, gallery_camids,
-                reranking=False):
+    def update_gallery(self, feats: np.ndarray, pids: np.ndarray, camids: np.ndarray):
+        """Update gallery features, person IDs, and camera IDs for re-identification evaluation.
+
+        Args:
+            feats (np.ndarray): Feature embeddings of gallery images.
+            pids (np.ndarray): Person identity labels for each gallery image.
+            camid (np.ndarray): Camera IDs corresponding to each gallery image.
+        """
+        self.gallery_feats = feats
+        self.gallery_pids = pids
+        self.gallery_camids = camids
+
+    def process(self, query_feats, query_pids, query_camids, reranking: bool = False):
         """Compute mAP and CMC from query/gallery features using Market-1501 protocol.
 
         Args:
             query_feats (np.ndarray): Query features (Q, D).
             query_pids (np.ndarray): Query person IDs (Q,).
             query_camids (np.ndarray): Query camera IDs (Q,).
-            gallery_feats (np.ndarray): Gallery features (G, D).
-            gallery_pids (np.ndarray): Gallery person IDs (G,).
-            gallery_camids (np.ndarray): Gallery camera IDs (G,).
             reranking (bool): Enable k-reciprocal re-ranking (Zhong et al., CVPR 2017).
         """
+        if self.gallery_feats is None:
+            LOGGER.warning("No gallery path found in dataset config. Using query as gallery.")
+            self.update_gallery(query_feats, query_pids, query_camids)
         if reranking:
-            dist = self._rerank_distance(query_feats, gallery_feats)
+            dist = self._rerank_distance(query_feats, self.gallery_feats)
         else:
             # L2 distance matrix (Q, G)
             dist = np.sqrt(
-                np.sum(query_feats ** 2, axis=1, keepdims=True)
-                + np.sum(gallery_feats ** 2, axis=1, keepdims=True).T
-                - 2 * query_feats @ gallery_feats.T
+                np.sum(query_feats**2, axis=1, keepdims=True)
+                + np.sum(self.gallery_feats**2, axis=1, keepdims=True).T
+                - 2 * query_feats @ self.gallery_feats.T
             )
             dist = np.clip(dist, 0, None)  # numerical stability
 
-        self._eval_distmat(dist, query_pids, query_camids, gallery_pids, gallery_camids)
+        self._eval_distmat(dist, query_pids, query_camids)
 
-    def _eval_distmat(self, dist, query_pids, query_camids, gallery_pids, gallery_camids):
+    def _eval_distmat(self, dist, query_pids, query_camids):
         """Evaluate mAP and CMC from a precomputed distance matrix.
 
         Args:
             dist (np.ndarray): Distance matrix (Q, G).
             query_pids (np.ndarray): Query person IDs (Q,).
             query_camids (np.ndarray): Query camera IDs (Q,).
-            gallery_pids (np.ndarray): Gallery person IDs (G,).
-            gallery_camids (np.ndarray): Gallery camera IDs (G,).
         """
         all_ap = []
         all_cmc = []
@@ -1598,8 +1610,8 @@ class ReidMetrics(SimpleClass, DataExportMixin):
 
             # Sort gallery by distance
             order = np.argsort(dist[i])
-            g_pids = gallery_pids[order]
-            g_camids = gallery_camids[order]
+            g_pids = self.gallery_pids[order]
+            g_camids = self.gallery_camids[order]
 
             # Remove same pid + same camid (standard Market-1501 protocol)
             keep = ~((g_pids == q_pid) & (g_camids == q_camid))
@@ -1659,8 +1671,7 @@ class ReidMetrics(SimpleClass, DataExportMixin):
 
         # Combined (Q+G) x (Q+G) distance matrix
         original_dist = np.concatenate(
-            [np.concatenate([q_q_sim, q_g_sim], axis=1),
-             np.concatenate([q_g_sim.T, g_g_sim], axis=1)],
+            [np.concatenate([q_q_sim, q_g_sim], axis=1), np.concatenate([q_g_sim.T, g_g_sim], axis=1)],
             axis=0,
         )
         original_dist = np.clip(2.0 - 2.0 * original_dist, 0, None).astype(np.float32)
@@ -1674,16 +1685,16 @@ class ReidMetrics(SimpleClass, DataExportMixin):
         V = np.zeros_like(original_dist, dtype=np.float32)
         for i in range(all_num):
             # K-reciprocal neighbors
-            forward_k = initial_rank[i, :k1 + 1]
-            backward_k = initial_rank[forward_k, :k1 + 1]
+            forward_k = initial_rank[i, : k1 + 1]
+            backward_k = initial_rank[forward_k, : k1 + 1]
             k_recip = forward_k[np.where(backward_k == i)[0]]
 
             # Expand by half-k reciprocal neighbors
             k_recip_exp = k_recip.copy()
             for j in range(len(k_recip)):
                 candidate = k_recip[j]
-                fwd = initial_rank[candidate, :int(np.around(k1 / 2)) + 1]
-                bwd = initial_rank[fwd, :int(np.around(k1 / 2)) + 1]
+                fwd = initial_rank[candidate, : int(np.around(k1 / 2)) + 1]
+                bwd = initial_rank[fwd, : int(np.around(k1 / 2)) + 1]
                 cand_recip = fwd[np.where(bwd == candidate)[0]]
                 if len(np.intersect1d(cand_recip, k_recip)) > 2.0 / 3 * len(cand_recip):
                     k_recip_exp = np.append(k_recip_exp, cand_recip)

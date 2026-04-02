@@ -13,6 +13,7 @@ from ultralytics.engine.validator import BaseValidator
 from ultralytics.utils import LOGGER, RANK, TQDM
 from ultralytics.utils.metrics import ReidMetrics
 from ultralytics.utils.plotting import plot_images
+from ultralytics.utils.torch_utils import smart_inference_mode
 
 
 class ReidValidator(BaseValidator):
@@ -65,6 +66,11 @@ class ReidValidator(BaseValidator):
         self._feats = []
         self._pids = []
         self._camids = []
+        # Build gallery dataset and extract features
+        gallery_path = self.data.get("gallery", self.data.get("test", ""))
+        if gallery_path:
+            gallery_path = Path(self.data["path"]) / gallery_path
+            self.metrics.update_gallery(*self._extract_gallery_features(gallery_path))
 
     def preprocess(self, batch: dict[str, Any]) -> dict[str, Any]:
         """Preprocess batch."""
@@ -123,25 +129,11 @@ class ReidValidator(BaseValidator):
         query_pids = torch.cat(self._pids, dim=0).numpy()
         query_camids = torch.cat(self._camids, dim=0).numpy()
 
-        # Build gallery dataset and extract features
-        data = self.data
-        gallery_path = data.get("gallery", data.get("test", ""))
-        if not gallery_path:
-            LOGGER.warning("No gallery path found in dataset config. Using query as gallery.")
-            gallery_feats, gallery_pids, gallery_camids = query_feats, query_pids, query_camids
-        else:
-            if not Path(gallery_path).is_absolute():
-                gallery_path = str(Path(data["path"]) / gallery_path)
-            gallery_feats, gallery_pids, gallery_camids = self._extract_gallery_features(gallery_path)
-
         reranking = getattr(self.args, "reid_reranking", False)
-        tag = " (re-ranking)" if reranking else ""
-        LOGGER.info(f"{'Computing metrics':>22s}   {len(query_pids)} query x {len(gallery_pids)} gallery{tag} ...")
-        self.metrics.process(
-            query_feats, query_pids, query_camids, gallery_feats, gallery_pids, gallery_camids, reranking=reranking
-        )
+        self.metrics.process(query_feats, query_pids, query_camids, reranking=reranking)
         return self.metrics.results_dict
 
+    @smart_inference_mode()
     def _extract_gallery_features(self, gallery_path: str):
         """Extract features from gallery set.
 
@@ -161,13 +153,11 @@ class ReidValidator(BaseValidator):
             batch["img"] = batch["img"].to(self.device, non_blocking=True)
             batch["img"] = batch["img"].half() if self.args.half else batch["img"].float()
 
-            with torch.no_grad():
-                preds = self._model(batch["img"])
+            preds = self._model(batch["img"])
             emb = preds[0] if isinstance(preds, (list, tuple)) else preds
 
             if tta:
-                with torch.no_grad():
-                    preds_flip = self._model(batch["img"].flip(dims=[3]))
+                preds_flip = self._model(batch["img"].flip(dims=[3]))
                 emb_flip = preds_flip[0] if isinstance(preds_flip, (list, tuple)) else preds_flip
                 emb = (emb + emb_flip) / 2
 
@@ -179,11 +169,7 @@ class ReidValidator(BaseValidator):
                 else batch["camid"]
             )
 
-        return (
-            torch.cat(feats, dim=0).numpy(),
-            torch.cat(pids, dim=0).numpy(),
-            torch.cat(camids, dim=0).numpy(),
-        )
+        return torch.cat(feats, dim=0).numpy(), torch.cat(pids, dim=0).numpy(), torch.cat(camids, dim=0).numpy()
 
     def gather_stats(self) -> None:
         """Gather stats from all GPUs for DDP."""
