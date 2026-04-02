@@ -343,7 +343,7 @@ class DeepOCSORT(OCSORT):
             if remaining_dets and recent_lost:
                 emb_dists = matching.embedding_distance(recent_lost, remaining_dets) / 2.0
                 emb_dists[emb_dists > (1 - self.appearance_thresh)] = 1.0
-                reid_matches, _, reid_u_det = matching.linear_assignment(emb_dists, thresh=0.4)
+                reid_matches, _, reid_u_det = matching.linear_assignment(emb_dists, thresh=0.3)
                 matched_det_indices = set()
                 for itracked, idet in reid_matches:
                     track = recent_lost[itracked]
