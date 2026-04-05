@@ -47,7 +47,6 @@ refer_data_yaml=os.path.abspath(f"../datasets/lvis_train_vps.yaml")
 
 
 DATA_CONFIG=dict()
-
 lvis_data=os.path.abspath("../datasets/lvis.yaml")
 
 
@@ -179,4 +178,53 @@ DATA_CONFIG["old_objv1_yolo_only"]=dict(
     val=dict(yolo_data=[lvis_data]),
 )
 
+
+
+DATA_CONFIG["coco128seg"]=dict(
+    train=dict(
+        yolo_data=[ "coco128-seg.yaml"],
+    ),
+    val=dict(
+        yolo_data=["../datasets/lvis.yaml"]
+    )
+)
+
+DATA_CONFIG["yoloe_train_data"] = dict(
+    train=dict(
+        yolo_data=["../datasets/Objects365v1.yaml"],
+        grounding_data=[
+            dict(
+                img_path="../datasets/flickr/full_images/",
+                json_file="../datasets/flickr/annotations/final_flickr_separateGT_train_segm.json"
+            ),
+            dict(
+                img_path="../datasets/mixed_grounding/gqa/images",
+                json_file="../datasets/mixed_grounding/annotations/final_mixed_train_no_coco_segm.json"
+            ),
+        ]
+    ),
+    val=dict(
+        yolo_data=["../datasets/lvis.yaml"]
+    )
+)
+
+
+DATA_CONFIG["yoloe_train_data_onlyobj365"] = dict(
+    train=dict(
+        yolo_data=["../datasets/Objects365v1.yaml"],
+        # grounding_data=[
+        #     dict(
+        #         img_path="../datasets/flickr/full_images/",
+        #         json_file="../datasets/flickr/annotations/final_flickr_separateGT_train_segm.json"
+        #     ),
+        #     dict(
+        #         img_path="../datasets/mixed_grounding/gqa/images",
+        #         json_file="../datasets/mixed_grounding/annotations/final_mixed_train_no_coco_segm.json"
+        #     ),
+        # ]
+    ),
+    val=dict(
+        yolo_data=["../datasets/lvis.yaml"]
+    )
+)
 
