@@ -1318,6 +1318,7 @@ class SemanticSegLoss(nn.Module):
             self.ce = nn.CrossEntropyLoss(ignore_index=255, weight=cityscapes_weight.clone()).to(
                 device=self.device, dtype=self.dtype
             )
+        self.ce_weight = float(getattr(model.args, "ce_weight", 1.0))
         self.dice_weight = float(getattr(model.args, "dice_weight", 1.0))
         self.aux_weight = float(getattr(model.args, "aux_weight", 0.4))
 
@@ -1366,7 +1367,7 @@ class SemanticSegLoss(nn.Module):
             preds = F.interpolate(preds, size=masks.shape[1:], mode="bilinear", align_corners=False)
 
         # Main CE + Dice
-        ce_loss = self._ce_loss(preds, masks)
+        ce_loss = self._ce_loss(preds, masks) * self.ce_weight
         dice_loss = self._dice_loss(preds, masks) * self.dice_weight
         total = ce_loss + dice_loss
 
