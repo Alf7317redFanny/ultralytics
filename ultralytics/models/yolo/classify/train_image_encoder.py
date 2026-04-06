@@ -239,7 +239,6 @@ class ImageEncoderTrainer(ClassificationTrainer):
                 .decode("pil", handler=wds.warn_and_continue)
                 .to_tuple("jpg", handler=wds.warn_and_continue)
                 .map(lambda sample: tf(sample[0]))
-                .with_epoch(len(shards) * 10000)
             )
         return _ImageOnlyDataset(img_path, tf)
 
@@ -257,14 +256,15 @@ class ImageEncoderTrainer(ClassificationTrainer):
         """
         dataset = self.build_dataset(dataset_path, mode)
         if isinstance(dataset, torch.utils.data.IterableDataset):
-            # WebDataset pipeline -- wrap for DataLoader compatibility
-            num_samples = 0
-            for f in sorted(Path(dataset_path).glob("shards/*_stats.json")):
-                with open(f) as fh:
-                    num_samples += json.load(fh)["successes"]
+            # WebDataset pipeline -- read actual sample count from img2dataset stats
+            num_samples = sum(
+                json.load(open(f))["successes"] for f in sorted(Path(dataset_path).glob("shards/*_stats.json"))
+            )
             if not num_samples:
                 num_samples = len(list(Path(dataset_path).glob("shards/*.tar"))) * 6000
                 LOGGER.warning(f"No stats files found, estimating {num_samples} samples from shard count")
+            # Align epoch length: with_epoch on pipeline must match DataLoader __len__
+            dataset.with_epoch(num_samples)
             return _WebDatasetLoader(dataset, num_samples, batch_size, self.args.workers, drop_last=mode == "train")
         return DataLoader(
             dataset,
