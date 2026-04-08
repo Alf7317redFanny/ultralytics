@@ -26,7 +26,7 @@ from ultralytics.data.utils import IMG_FORMATS
 from ultralytics.models.yolo.classify.train import ClassificationTrainer
 from ultralytics.nn.image_encoder import ImageEncoderModel
 from ultralytics.nn.teacher_model import TEACHER_REGISTRY, build_teacher_model, safe_key
-from ultralytics.utils import DEFAULT_CFG, LOGGER, RANK
+from ultralytics.utils import DEFAULT_CFG, LOGGER, RANK, callbacks as ul_callbacks
 
 # DataComp-12M has images up to ~268M pixels. PIL raises DecompressionBombError above 179M pixels,
 # crashing DataLoader workers despite wds.warn_and_continue. Standard for web-crawled pipelines.
@@ -129,7 +129,22 @@ class ImageEncoderTrainer(ClassificationTrainer):
         overrides.setdefault("close_mosaic", 0)  # no mosaic in distillation, avoids .reset() call
         overrides.setdefault("teachers", "eupe:vitb16")
         self.teacher_models = {}
-        super().__init__(cfg, overrides, _callbacks)
+        # Distillation reports distill_loss only, so filter Platform hooks here before BaseTrainer.__init__ runs them
+        # and lets Platform send a cancel trigger for missing classification metrics.
+        original_add_integration_callbacks = ul_callbacks.add_integration_callbacks
+
+        def add_integration_callbacks_without_platform(instance):
+            original_add_integration_callbacks(instance)
+            for event_callbacks in instance.callbacks.values():
+                event_callbacks[:] = [
+                    cb for cb in event_callbacks if cb.__module__ != "ultralytics.utils.callbacks.platform"
+                ]
+
+        ul_callbacks.add_integration_callbacks = add_integration_callbacks_without_platform
+        try:
+            super().__init__(cfg, overrides, _callbacks)
+        finally:
+            ul_callbacks.add_integration_callbacks = original_add_integration_callbacks
         # self.args.teachers survives DDP serialization (in check_dict_alignment allowed_custom_keys)
         raw = self.args.teachers
         self.teachers = raw.split("+") if isinstance(raw, str) else raw
