@@ -165,6 +165,7 @@ This is known as catastrophic forgetting - the model loses previously learned kn
 - **Merge datasets**: include examples of the original classes alongside the new classes during fine-tuning.
 - **Freeze more layers**: use `freeze=10` or higher to preserve backbone features.
 - **Lower learning rate**: a smaller learning rate reduces how much the model shifts away from the pretrained weights.
+- **Train for fewer epochs**: the longer the model trains on new data exclusively, the more forgetting increases.
 
 ## FAQ
 
