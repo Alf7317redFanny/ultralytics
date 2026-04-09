@@ -236,12 +236,20 @@ class DetectionValidator(BaseValidator):
             for jdict in gathered_jdict:
                 self.jdict.extend(jdict)
             self.metrics.stats = merged_stats
+            gathered_image_metrics = [None] * dist.get_world_size()
+            dist.gather_object(self.metrics.box.image_metrics, gathered_image_metrics, dst=0)
+            merged_image_metrics = {}
+            for image_metrics in gathered_image_metrics:
+                for k, v in image_metrics.items():
+                    merged_image_metrics[k] = v
+            self.metrics.box.image_metrics = merged_image_metrics
             self.seen = len(self.dataloader.dataset)  # total image count from dataset
         elif RANK > 0:
             dist.gather_object(self.metrics.stats, None, dst=0)
             dist.gather_object(self.jdict, None, dst=0)
             self.jdict = []
             self.metrics.clear_stats()
+            self.metrics.box.image_metrics = {}
 
     def get_stats(self) -> dict[str, Any]:
         """Calculate and return metrics statistics.
