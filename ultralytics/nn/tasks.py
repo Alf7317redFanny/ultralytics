@@ -962,6 +962,19 @@ class RTDETRDetectionModel(DetectionModel):
 
         raise RuntimeError(f"Nonfinite RT-DETR predicted boxes detected. Saved weights to {save_path}")
 
+    @staticmethod
+    def _cast_floating_loss_inputs_fp32(value):
+        """Recursively cast floating loss inputs to FP32 while preserving non-floating tensors."""
+        if isinstance(value, torch.Tensor):
+            return value.float() if value.is_floating_point() and value.dtype != torch.float32 else value
+        if isinstance(value, dict):
+            return {k: RTDETRDetectionModel._cast_floating_loss_inputs_fp32(v) for k, v in value.items()}
+        if isinstance(value, tuple):
+            return tuple(RTDETRDetectionModel._cast_floating_loss_inputs_fp32(v) for v in value)
+        if isinstance(value, list):
+            return [RTDETRDetectionModel._cast_floating_loss_inputs_fp32(v) for v in value]
+        return value
+
     def loss(self, batch, preds=None):
         """Compute the loss for the given batch of data.
 
@@ -1024,15 +1037,26 @@ class RTDETRDetectionModel(DetectionModel):
 
         self._maybe_trap_nonfinite_dfine_boxes(dec_bboxes, enabled=supports_dfine)
 
+        args = getattr(self, "args", None)
+        strict_loss_fp32 = supports_dfine and (
+            args.get("strict_loss_fp32", False) if isinstance(args, dict) else getattr(args, "strict_loss_fp32", False)
+        )
+
         loss_kwargs = {"dn_bboxes": dn_bboxes, "dn_scores": dn_scores, "dn_meta": dn_meta}
         if supports_dfine:
             loss_kwargs["dfine_meta"] = dfine_meta
             loss_kwargs["matcher_epoch"] = matcher_epoch
+        loss_inputs = (dec_bboxes, dec_scores)
+        loss_targets = targets
+        if strict_loss_fp32:
+            loss_inputs = self._cast_floating_loss_inputs_fp32(loss_inputs)
+            loss_targets = self._cast_floating_loss_inputs_fp32(loss_targets)
+            loss_kwargs = self._cast_floating_loss_inputs_fp32(loss_kwargs)
         if supports_dfine:
             with torch.autocast(device_type=img.device.type, enabled=False):
-                loss = self.criterion((dec_bboxes, dec_scores), targets, **loss_kwargs)
+                loss = self.criterion(loss_inputs, loss_targets, **loss_kwargs)
         else:
-            loss = self.criterion((dec_bboxes, dec_scores), targets, **loss_kwargs)
+            loss = self.criterion(loss_inputs, loss_targets, **loss_kwargs)
 
         # One-to-many loss (auxiliary)
         if self.training and one_to_many_groups > 0:
