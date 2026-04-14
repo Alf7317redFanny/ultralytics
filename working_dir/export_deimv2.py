@@ -78,12 +78,12 @@ def build_engine_fp16(onnx_path, engine_path, workspace=None, half=True, shape=(
 
     if half and fp32_attn:
         config.set_flag(trt.BuilderFlag.OBEY_PRECISION_CONSTRAINTS)
-        # Match actual TensorRT layer names parsed from the DEIMv2 ONNX:
-        # attention is decomposed into MatMul/Softmax, while some decoder norms
-        # are still lowered into Reduce/Pow/Unary/Elementwise subgraphs.
-        attn_re = re.compile(r"/attn/|/self_attn/|/cross_attn/")
+        # Keep the numerically sensitive ops in fp32, but leave attention
+        # MatMul in fp16 for this minimal mixed-precision trial.
         norm_re = re.compile(r"/(?:norm\d*|gateway/norm)(?:/|$)")
-        norm_internal_types = {trt.LayerType.ELEMENTWISE, trt.LayerType.REDUCE, trt.LayerType.UNARY}
+        score_mm_re = re.compile(r"/(?:attn|self_attn|cross_attn)/MatMul$")
+        pow_re = re.compile(r"/Pow(?:_|$)", re.IGNORECASE)
+        sqrt_re = re.compile(r"/Sqrt(?:_|$)", re.IGNORECASE)
         n_pinned = 0
         for i in range(network.num_layers):
             layer = network.get_layer(i)
@@ -93,9 +93,15 @@ def build_engine_fp16(onnx_path, engine_path, workspace=None, half=True, shape=(
                 pin = True
             elif layer.type == trt.LayerType.NORMALIZATION:
                 pin = True
-            # elif layer.type == trt.LayerType.MATRIX_MULTIPLY and attn_re.search(name):
+            # Uncomment this narrower score-matmul override if T4 still needs
+            # extra stabilization without pinning every attention MatMul.
+            # elif layer.type == trt.LayerType.MATRIX_MULTIPLY and score_mm_re.search(name):
             #     pin = True
-            elif norm_re.search(name) and layer.type in norm_internal_types:
+            elif norm_re.search(name) and layer.type == trt.LayerType.REDUCE:
+                pin = True
+            elif norm_re.search(name) and layer.type == trt.LayerType.UNARY and sqrt_re.search(name):
+                pin = True
+            elif norm_re.search(name) and layer.type == trt.LayerType.ELEMENTWISE and pow_re.search(name):
                 pin = True
             if pin:
                 layer.precision = trt.float32
