@@ -88,7 +88,7 @@ Your data stays in your region. Ultralytics Platform operates infrastructure in 
 | ------ | ---------------------------- | ----------------------- | --------------------------------------- |
 | **US** | Americas                     | Iowa, USA               | Americas users, fastest for Americas    |
 | **EU** | Europe, Middle East & Africa | Belgium, Europe         | European users, GDPR compliance         |
-| **AP** | Asia Pacific                 | Hong Kong, Asia-Pacific | Asia-Pacific users, lowest APAC latency |
+| **AP** | Asia Pacific                 | Taiwan, Asia-Pacific    | Asia-Pacific users, lowest APAC latency |
 
 You select your region during onboarding, and all your data, models, and deployments remain in that region.
 

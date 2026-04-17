@@ -51,7 +51,7 @@ During onboarding, you'll be asked to select your data region. The Platform auto
 | ------ | ---------------------------- | ----------------------- | --------------------------------------- |
 | **US** | Americas                     | Iowa, USA               | Americas users, fastest for Americas    |
 | **EU** | Europe, Middle East & Africa | Belgium, Europe         | European users, GDPR compliance         |
-| **AP** | Asia Pacific                 | Hong Kong, Asia-Pacific | Asia-Pacific users, lowest APAC latency |
+| **AP** | Asia Pacific                 | Taiwan, Asia-Pacific    | Asia-Pacific users, lowest APAC latency |
 
 !!! warning "Region is Permanent"
 
