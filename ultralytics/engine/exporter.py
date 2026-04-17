@@ -67,6 +67,7 @@ import os
 import shutil
 import time
 from copy import deepcopy
+from functools import partial
 from datetime import datetime
 from pathlib import Path
 
@@ -1042,16 +1043,6 @@ class Exporter:
 
         if getattr(self.model, "end2end", False):
             raise ValueError("IMX export is not supported for end2end models.")
-        # Install requirements before dataloader creation to avoid matplotlib version conflicts
-        check_requirements(
-            (
-                "model-compression-toolkit>=2.4.1",
-                "edge-mdt-cl<1.1.0",
-                "edge-mdt-tpc>=1.2.0",
-                "pydantic<=2.11.7",
-            )
-        )
-        check_requirements("imx500-converter[pt]>=3.17.3")
         from ultralytics.utils.export.imx import torch2imx
 
         return torch2imx(
@@ -1061,7 +1052,7 @@ class Exporter:
             iou=self.args.iou,
             max_det=self.args.max_det,
             metadata=self.metadata,
-            dataset=self.get_int8_calibration_dataloader(prefix),
+            dataset=partial(self.get_int8_calibration_dataloader, prefix),
             prefix=prefix,
         )
 
@@ -1116,8 +1107,6 @@ class NMSModel(torch.nn.Module):
             (torch.Tensor | tuple): Tensor of shape (B, max_det, 4 + 2 + extra_shape) where B is the batch size, or a
                 tuple of (detections, proto) for segmentation models.
         """
-        from functools import partial
-
         from torchvision.ops import nms
 
         preds = self.model(x)
