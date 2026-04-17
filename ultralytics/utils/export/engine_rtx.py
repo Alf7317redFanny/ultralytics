@@ -6,6 +6,27 @@ import json
 from pathlib import Path
 
 from ultralytics.utils import LOGGER
+from ultralytics.utils.checks import check_requirements
+
+
+def _onnx_to_fp16(onnx_file: str) -> str:
+    """Convert an FP32 ONNX model to FP16 in place and return the new path.
+
+    TensorRT-RTX builds strongly-typed JIT networks; precision is dictated by the ONNX graph
+    rather than builder flags, so `half=True` requires an FP16 ONNX input.
+    """
+    try:
+        import onnx
+        from onnxconverter_common import float16
+    except ImportError:
+        check_requirements(("onnx", "onnxconverter_common"))
+        import onnx
+        from onnxconverter_common import float16
+
+    fp16_path = Path(onnx_file).with_suffix(".fp16.onnx")
+    model_fp16 = float16.convert_float_to_float16(onnx.load(onnx_file), keep_io_types=True)
+    onnx.save(model_fp16, fp16_path)
+    return str(fp16_path)
 
 
 def onnx2engine_rtx(
@@ -45,6 +66,11 @@ def onnx2engine_rtx(
 
     output_file = Path(output_file) if output_file else Path(onnx_file).with_suffix(".rtx.engine")
 
+    # Strongly-typed JIT networks derive precision from the ONNX graph, so convert upfront.
+    if half:
+        onnx_file = _onnx_to_fp16(onnx_file)
+        LOGGER.info(f"{prefix} converted input ONNX to FP16: {onnx_file}")
+
     logger = trt.Logger(trt.Logger.INFO)
     if verbose:
         logger.min_severity = trt.Logger.Severity.VERBOSE
@@ -54,10 +80,6 @@ def onnx2engine_rtx(
 
     flag = 1 << int(trt.NetworkDefinitionCreationFlag.EXPLICIT_BATCH)
     network = builder.create_network(flag)
-
-    # tensorrt_rtx builds strongly-typed JIT networks by default and does not expose
-    # `platform_has_fast_fp16` / `platform_has_fast_int8`. Precision flags are advisory;
-    # pass the user request through and let the builder validate on the target RTX GPU.
 
     parser = trt.OnnxParser(network, logger)
     if not parser.parse_from_file(onnx_file):
@@ -80,14 +102,13 @@ def onnx2engine_rtx(
 
     LOGGER.info(f"{prefix} building {'INT8' if int8 else 'FP' + ('16' if half else '32')} RTX engine as {output_file}")
     if int8:
-        # TRT-RTX INT8 calibration surface is TBD — verify IInt8Calibrator availability at
-        # import time on target and wire in calibrator similarly to onnx2engine when present.
-        config.set_flag(trt.BuilderFlag.INT8)
+        # TensorRT-RTX strongly-typed JIT networks forbid the INT8 builder flag; INT8 precision
+        # is expressed via QDQ nodes in the input ONNX. Leaving as a clear follow-up.
         if dataset is None:
             raise ValueError("INT8 calibration requires a dataset (pass data= during export).")
-        raise NotImplementedError("INT8 calibration for tensorrt_rtx is not yet wired up — contribution welcome.")
-    elif half:
-        config.set_flag(trt.BuilderFlag.FP16)
+        raise NotImplementedError(
+            "INT8 for tensorrt_rtx requires a QDQ-annotated ONNX; calibration path not yet wired up."
+        )
 
     engine = builder.build_serialized_network(network, config)
     if engine is None:
