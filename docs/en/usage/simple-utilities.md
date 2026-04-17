@@ -731,7 +731,7 @@ auto_annotate(
 )
 ```
 
-For a hosted, no-code alternative, [Ultralytics Platform](https://platform.ultralytics.com/) provides smart annotation directly in the browser — use click-based masking with [SAM 2.1](../models/sam-2.md) or [SAM 3](../models/sam-3.md), or run predictions with pretrained and fine-tuned YOLO models for detect, segment, and OBB tasks.
+For more details, check the [auto_annotate reference section](../reference/data/annotator.md#ultralytics.data.annotator.auto_annotate), or use [Ultralytics Platform](https://platform.ultralytics.com/) as a hosted, no-code alternative with click-based masking via [SAM 2.1](../models/sam-2.md) or [SAM 3](../models/sam-3.md), or predictions from pretrained and fine-tuned YOLO models for detect, segment, and OBB tasks.
 
 ### How do I convert COCO dataset annotations to YOLO format in Ultralytics?
 
