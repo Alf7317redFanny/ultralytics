@@ -1,5 +1,5 @@
 from ultralytics import YOLO
-from ultralytics import RTDETR
+from ultralytics import RTDETR, RTDETRDEIM
 from ultralytics.utils import ROOT, YAML
 import torch
 
@@ -7,6 +7,7 @@ import torch
 # model = YOLO('working_dir/yolo26nms_weights/yolo26n_nms.onnx')
 # model = RTDETR('onnx_exports/rfdetr-nano/rfdetr-nano.onnx')
 # model = YOLO('yolo26n.onnx')
+# model = YOLO('yolo26n.engine')
 
 # model = YOLO('ultralytics/cfg/models/26/yolo26n_nms.yaml')
 # model.load('yolo26n.pt')
@@ -45,7 +46,7 @@ import torch
 
 # model = RTDETR('ultralytics/cfg/models/rt-detr/rtdetr-l.yaml')
 # model.load('rtdetr-l.pt')
-# model = RTDETR('rtdetr-l')
+# model = RTDETR('rtdetr-l.engine')
 
 # model = RTDETR('working_dir/yolodetr_weights/yolo26_detr_l_obj_640.pt')
 
@@ -107,14 +108,19 @@ import torch
 # model.load('working_dir/dinov3_weights/rtdetr_dinov3sta_detrl6_640.pt')
 # # model.save("working_dir/dinov3_weights/rtdetr_dinov3sta_detrl6_640.pt")
 
-model = RTDETR('ultralytics/cfg/models/rt-detr/rtdetr_dinov3s_l3_sta.yaml')
+# model = RTDETR('ultralytics/cfg/models/rt-detr/rtdetr_dinov3s_l3_sta.yaml')
 # model.load('/Users/esat/workspace/pretrained/rtdetr_dinov3staL_dec3_lrf05_origaugV2_clsmos15/weights/best.pt')
-model.load('working_dir/dinov3_weights/rtdetr_dinov3sta_detrl3_640.pt')
+# model.load('working_dir/dinov3_weights/rtdetr_dinov3sta_detrl3_640.pt')
 # model.save("working_dir/dinov3_weights/rtdetr_dinov3sta_detrl3_640.pt")
+# model = RTDETRDEIM("/data/esat/workspace/runs/detect/detr_trainings/deim_dinov3_v3_yoloaugp05_decay_68epc_obj2cocov2_epc24/weights/best.pt")
+# model = RTDETRDEIM("/data/esat/workspace/runs/detect/detr_trainings/deim_dinov3_v3_yoloaugp05_decay_68epc_obj2cocov2_epc24/weights/best_op17_nosim_fp16_91new.engine")
+# model = RTDETRDEIM("/data/esat/workspace/runs/detect/detr_trainings/deim_dinov3_v3_yoloaugp05_decay_68epc_obj2cocov2_epc24/weights/trt/best_fp16_attn32.engine")
+model = RTDETRDEIM("/data/esat/workspace/runs/detect/detr_trainings/deim_dinov3plusSTA_xl_yoloaug_decay_58epc_p05_noaug4/weights/best_op17_nosim_norope_fp16.engine")
+# model = RTDETR("yolo26_detr_l_obj_640.engine")
 
 # model = RTDETR("ultralytics/cfg/models/26/yolo26_rtdetr_dinov3s_l3_light_obj365.yaml")
 # model = YOLO("ultralytics/cfg/models/26/yolo26_dinov3s_l3_light.yaml")
-# model = RTDETR("/Users/esat/workspace/pretrained/rtdetr_l3_dinov3origaugV2_imgsz640_epc150_clsmos15_lrf05_lr4x_obj365/weights/best.pt")
+# model = RTDETR("/Users/esat/workspace/pretrained/rtdetr_l3_dinov3origaugV2_imgsz640_epc150_clsmos15_lrf05_lr4x_obj365/weights/best.pt")s
 # model = RTDETR("ultralytics/cfg/models/26/yolo26_rtdetr_dinov3s_l3_light.yaml")
 # weights = "/Users/esat/workspace/pretrained/rtdetr_l3_dinov3origaugV2_imgsz640_epc150_clsmos15_lrf05_lr4x_obj365/weights/best.pt"
 # # weights = "dinov3_small_detr_pretrained_wo_decoder_weights.pt"
@@ -141,7 +147,7 @@ model.load('working_dir/dinov3_weights/rtdetr_dinov3sta_detrl3_640.pt')
 
 # model = RTDETR("/Users/esat/workspace/pretrained/rtdetrLightp4_yolo26n_scratch_wu1_lr4x_origaugV2_150epc/weights/best.pt")
 
-# Load COCO class names from the dataset config
+# # Load COCO class names from the dataset config
 # coco_yaml = ROOT / "cfg/datasets/coco.yaml"
 # coco_names = YAML.load(coco_yaml).get("names")
 # model.model.names = coco_names  # Explicit destination names for class remap (no fallback).
@@ -161,7 +167,7 @@ model.load('working_dir/dinov3_weights/rtdetr_dinov3sta_detrl3_640.pt')
 # 2. Run inference on a source (can be a file path, URL, or '0' for webcam)
 # We use a standard URL image for this example.
 # model.set_head_attr(disable_topk=True)  # Disable top-k selection to get raw predictions for debugging
-results = model('https://ultralytics.com/images/bus.jpg', conf=0.35, imgsz=640)
+results = model('https://ultralytics.com/images/bus.jpg', conf=0.30, imgsz=640)
 
 # 3. Iterate through results (usually a list, one per image)
 for i, r in enumerate(results):
