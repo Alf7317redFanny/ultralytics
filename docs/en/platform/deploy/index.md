@@ -83,11 +83,11 @@ graph TB
     style AP fill:#4CAF50,color:#fff
 ```
 
-| Region | Location                |
-| ------ | ----------------------- |
-| US     | Iowa, USA               |
-| EU     | Belgium, Europe         |
-| AP     | Taiwan, Asia-Pacific    |
+| Region | Location             |
+| ------ | -------------------- |
+| US     | Iowa, USA            |
+| EU     | Belgium, Europe      |
+| AP     | Taiwan, Asia-Pacific |
 
 ### Dedicated Endpoints
 
