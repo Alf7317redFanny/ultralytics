@@ -941,17 +941,10 @@ class Exporter:
         # engine is device-agnostic and JIT-compiles kernels on first load on the target RTX GPU.
         assert not self.args.half, "half=True is not yet supported for format='engine_rtx' (FP32 only)"
         assert not self.args.int8, "int8=True is not yet supported for format='engine_rtx' (FP32 only)"
-        f_onnx = self.export_onnx()  # run before TRT-RTX import to isolate ONNX export failures
-
-        try:
-            import tensorrt_rtx as trt_rtx
-        except ImportError:
-            check_requirements("tensorrt-rtx>=1.4.0")  # Linux/Windows x86_64 wheels only
-            import tensorrt_rtx as trt_rtx
+        f_onnx = self.export_onnx()
 
         from ultralytics.utils.export.engine_rtx import onnx2engine_rtx
 
-        LOGGER.info(f"\n{prefix} starting export with TensorRT-RTX {trt_rtx.__version__}...")
         assert Path(f_onnx).exists(), f"failed to export ONNX file: {f_onnx}"
         f = self.file.with_suffix(".rtx.engine")
         onnx2engine_rtx(

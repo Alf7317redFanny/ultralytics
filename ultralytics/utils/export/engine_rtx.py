@@ -6,6 +6,7 @@ import json
 from pathlib import Path
 
 from ultralytics.utils import LOGGER
+from ultralytics.utils.checks import check_requirements
 
 
 def onnx2engine_rtx(
@@ -27,8 +28,13 @@ def onnx2engine_rtx(
     FP16/INT8 builder flags, so precision must be expressed in the ONNX graph (FP16 cast or QDQ
     nodes) — wiring planned as a follow-up.
     """
-    import tensorrt_rtx as trt  # separate package from classic tensorrt
+    try:
+        import tensorrt_rtx as trt
+    except ImportError:
+        check_requirements("tensorrt-rtx>=1.4.0")  # Linux/Windows x86_64 wheels only
+        import tensorrt_rtx as trt
 
+    LOGGER.info(f"{prefix} starting export with TensorRT-RTX {trt.__version__}...")
     output_file = Path(output_file) if output_file else Path(onnx_file).with_suffix(".rtx.engine")
 
     logger = trt.Logger(trt.Logger.INFO)
