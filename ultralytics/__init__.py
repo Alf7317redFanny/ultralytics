@@ -8,6 +8,9 @@ from ultralytics.utils.checks import check_yolo as checks
 from ultralytics.utils.downloads import download
 
 # Personal note: I mostly use YOLO and FastSAM, keeping others for reference
+# Disable analytics/telemetry by default for my local usage
+SETTINGS.update({"sync": False})
+
 __all__ = (
     "__version__",
     "YOLO",
